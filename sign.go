@@ -6,9 +6,13 @@ import (
 	"crypto/rsa"
 	_ "crypto/sha1"
 	_ "crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/beevik/etree"
 	"github.com/russellhaering/goxmldsig/etreeutils"
@@ -20,6 +24,7 @@ type SigningContext struct {
 	IdAttribute   string
 	Prefix        string
 	Canonicalizer Canonicalizer
+	KeyValueInfo  string 	// Check constant for values
 }
 
 func NewDefaultSigningContext(ks X509KeyStore) *SigningContext {
@@ -29,6 +34,7 @@ func NewDefaultSigningContext(ks X509KeyStore) *SigningContext {
 		IdAttribute:   DefaultIdAttr,
 		Prefix:        DefaultPrefix,
 		Canonicalizer: MakeC14N11Canonicalizer(),
+		KeyValueInfo:  RSAKeyValue,
 	}
 }
 
@@ -89,23 +95,19 @@ func (ctx *SigningContext) constructSignedInfo(el *etree.Element, enveloped bool
 
 	// /SignedInfo/Reference
 	reference := ctx.createNamespacedElement(signedInfo, ReferenceTag)
-
-	dataId := el.SelectAttrValue(ctx.IdAttribute, "")
-	if dataId == "" {
-		return nil, errors.New("Missing data ID")
-	}
-
-	reference.CreateAttr(URIAttr, "#"+dataId)
+	reference.CreateAttr(URIAttr, "")
 
 	// /SignedInfo/Reference/Transforms
 	transforms := ctx.createNamespacedElement(reference, TransformsTag)
+	// default is True
 	if enveloped {
 		envelopedTransform := ctx.createNamespacedElement(transforms, TransformTag)
 		envelopedTransform.CreateAttr(AlgorithmAttr, EnvelopedSignatureAltorithmId.String())
+	} else {
+		// if envelope is False then add canonical algo value
+		canonicalizationAlgorithm := ctx.createNamespacedElement(transforms, TransformTag)
+		canonicalizationAlgorithm.CreateAttr(AlgorithmAttr, string(ctx.Canonicalizer.Algorithm()))
 	}
-	canonicalizationAlgorithm := ctx.createNamespacedElement(transforms, TransformTag)
-	canonicalizationAlgorithm.CreateAttr(AlgorithmAttr, string(ctx.Canonicalizer.Algorithm()))
-
 	// /SignedInfo/Reference/DigestMethod
 	digestMethod := ctx.createNamespacedElement(reference, DigestMethodTag)
 	digestMethod.CreateAttr(AlgorithmAttr, digestAlgorithmIdentifier)
@@ -176,14 +178,11 @@ func (ctx *SigningContext) ConstructSignature(el *etree.Element, enveloped bool)
 		return nil, err
 	}
 
-	certs := [][]byte{cert}
-	if cs, ok := ctx.KeyStore.(X509ChainStore); ok {
-		certs, err = cs.GetChain()
-		if err != nil {
-			return nil, err
-		}
+	var certif *x509.Certificate
+	certif, err = x509.ParseCertificate(cert)
+	if err != nil {
+		return  nil, err
 	}
-
 	rawSignature, err := rsa.SignPKCS1v15(rand.Reader, key, ctx.Hash, digest)
 	if err != nil {
 		return nil, err
@@ -191,14 +190,45 @@ func (ctx *SigningContext) ConstructSignature(el *etree.Element, enveloped bool)
 
 	signatureValue := ctx.createNamespacedElement(sig, SignatureValueTag)
 	signatureValue.SetText(base64.StdEncoding.EncodeToString(rawSignature))
-
 	keyInfo := ctx.createNamespacedElement(sig, KeyInfoTag)
-	x509Data := ctx.createNamespacedElement(keyInfo, X509DataTag)
-	for _, cert := range certs {
+
+	switch ctx.KeyValueInfo {
+
+	case RSAKeyValue:
+		// Used in case of RSA key Value generation
+		keyValue := ctx.createNamespacedElement(keyInfo, KeyValueTag)
+		rsaKeyValue := ctx.createNamespacedElement(keyValue, RSAKeyValueTag)
+		rsaPublicKey := certif.PublicKey.(*rsa.PublicKey)
+
+		mod := rsaPublicKey.N.Bytes()
+		x509Certificate := ctx.createNamespacedElement(rsaKeyValue, ModulusTag)
+		x509Certificate.SetText(base64.StdEncoding.EncodeToString(mod))
+		x509Certificate = ctx.createNamespacedElement(rsaKeyValue, ExponentTag)
+		expo := []byte(strconv.Itoa(rsaPublicKey.E))
+		x509Certificate.SetText(base64.StdEncoding.EncodeToString(expo))
+
+	case x509SubjectName:
+		// Used in case of x509 Subject Name
+		x509Data := ctx.createNamespacedElement(keyInfo, X509DataTag)
+		x509Certificate := ctx.createNamespacedElement(x509Data, X509SubjectNameTag)
+		x509Certificate.SetText(certif.Subject.ToRDNSequence().String())
+		x509Certificate = ctx.createNamespacedElement(x509Data, X509CertificateTag)
+		pemCert := pem.Block{
+			Type:    "CERTIFICATE",
+			Headers: nil,
+			Bytes:   cert,
+		}
+		pubCert := pem.EncodeToMemory(&pemCert)
+		pubCertStr := string(pubCert)
+		pubCertStr = strings.Replace(pubCertStr, "-----BEGIN CERTIFICATE-----\n", "", 1)
+		pubCertStr = strings.Replace(pubCertStr, "\n-----END CERTIFICATE-----\n", "", 1)
+		x509Certificate.SetText(pubCertStr)
+
+	case x509DataCert:
+		x509Data := ctx.createNamespacedElement(keyInfo, X509DataTag)
 		x509Certificate := ctx.createNamespacedElement(x509Data, X509CertificateTag)
 		x509Certificate.SetText(base64.StdEncoding.EncodeToString(cert))
 	}
-
 	return sig, nil
 }
 

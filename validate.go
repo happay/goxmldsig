@@ -110,7 +110,7 @@ func (ctx *ValidationContext) transform(
 	ref *types.Reference) (*etree.Element, Canonicalizer, error) {
 	transforms := ref.Transforms.Transforms
 
-	if len(transforms) != 2 {
+	if len(transforms) != 1 {
 		return nil, nil, errors.New("Expected Enveloped and C14N transforms")
 	}
 
@@ -124,35 +124,35 @@ func (ctx *ValidationContext) transform(
 
 	var canonicalizer Canonicalizer
 
-	for _, transform := range transforms {
-		algo := transform.Algorithm
+	// fetch canonical Algorithm:
+	algo := sig.SignedInfo.CanonicalizationMethod.Algorithm
 
-		switch AlgorithmID(algo) {
-		case EnvelopedSignatureAltorithmId:
-			if !removeElementAtPath(el, signaturePath) {
-				return nil, nil, errors.New("Error applying canonicalization transform: Signature not found")
-			}
-
-		case CanonicalXML10ExclusiveAlgorithmId:
-			var prefixList string
-			if transform.InclusiveNamespaces != nil {
-				prefixList = transform.InclusiveNamespaces.PrefixList
-			}
-
-			canonicalizer = MakeC14N10ExclusiveCanonicalizerWithPrefixList(prefixList)
-
-		case CanonicalXML11AlgorithmId:
-			canonicalizer = MakeC14N11Canonicalizer()
-
-		case CanonicalXML10RecAlgorithmId:
-			canonicalizer = MakeC14N10RecCanonicalizer()
-
-		case CanonicalXML10CommentAlgorithmId:
-			canonicalizer = MakeC14N10CommentCanonicalizer()
-
-		default:
-			return nil, nil, errors.New("Unknown Transform Algorithm: " + algo)
+	switch AlgorithmID(algo) {
+	case EnvelopedSignatureAltorithmId:
+		if !removeElementAtPath(el, signaturePath) {
+			return nil, nil, errors.New("Error applying canonicalization transform: Signature not found")
 		}
+	// Not Supported Algorithm for Validation
+	case CanonicalXML10ExclusiveAlgorithmId:
+		return nil, nil, errors.New("Error applying canonicalization transform: NotSupported")
+	//	var prefixList string
+	//	if transform.InclusiveNamespaces != nil {
+	//		prefixList = transform.InclusiveNamespaces.PrefixList
+	//	}
+	//
+	//	canonicalizer = MakeC14N10ExclusiveCanonicalizerWithPrefixList(prefixList)
+
+	case CanonicalXML11AlgorithmId:
+		canonicalizer = MakeC14N11Canonicalizer()
+
+	case CanonicalXML10RecAlgorithmId:
+		canonicalizer = MakeC14N10RecCanonicalizer()
+
+	case CanonicalXML10CommentAlgorithmId:
+		canonicalizer = MakeC14N10CommentCanonicalizer()
+
+	default:
+		return nil, nil, errors.New("Unknown Transform Algorithm: " + algo)
 	}
 
 	if canonicalizer == nil {
@@ -234,9 +234,9 @@ func (ctx *ValidationContext) verifySignedInfo(sig *types.Signature, canonicaliz
 
 func (ctx *ValidationContext) validateSignature(el *etree.Element, sig *types.Signature, cert *x509.Certificate) (*etree.Element, error) {
 	idAttr := el.SelectAttr(ctx.IdAttribute)
-	if idAttr == nil || idAttr.Value == "" {
-		return nil, errors.New("Missing ID attribute")
-	}
+	//if idAttr == nil || idAttr.Value == "" {
+	//	return nil, errors.New("Missing ID attribute")
+	//}
 
 	var ref *types.Reference
 
@@ -254,6 +254,18 @@ func (ctx *ValidationContext) validateSignature(el *etree.Element, sig *types.Si
 		return nil, err
 	}
 
+	// Removing the Child with Signature Tag
+	var index int
+	for _, ele := range transformed.ChildElements() {
+		if ele.Tag == "Signature" {
+			break
+		} else {
+			index = index + 1
+
+		}
+	}
+
+	transformed.RemoveChildAt(index)
 	digestAlgorithm := ref.DigestAlgo.Algorithm
 
 	// Digest the transformed XML and compare it to the 'DigestValue' from the 'SignedInfo'
@@ -299,9 +311,9 @@ func contains(roots []*x509.Certificate, cert *x509.Certificate) bool {
 // findSignature searches for a Signature element referencing the passed root element.
 func (ctx *ValidationContext) findSignature(el *etree.Element) (*types.Signature, error) {
 	idAttr := el.SelectAttr(ctx.IdAttribute)
-	if idAttr == nil || idAttr.Value == "" {
-		return nil, errors.New("Missing ID attribute")
-	}
+	//if idAttr == nil || idAttr.Value == "" {
+	//	return nil, errors.New("Missing ID attribute")
+	//}
 
 	var sig *types.Signature
 
@@ -412,12 +424,14 @@ func (ctx *ValidationContext) verifyCertificate(sig *types.Signature) (*x509.Cer
 
 	if sig.KeyInfo != nil {
 		// If the Signature includes KeyInfo, extract the certificate from there
-		if len(sig.KeyInfo.X509Data.X509Certificates) == 0 || sig.KeyInfo.X509Data.X509Certificates[0].Data == "" {
+		// This is only Valid for
+		keyInfo := sig.KeyInfo.(types.X509Data)
+		if len(keyInfo.X509Certificates) == 0 || keyInfo.X509Certificates[0].Data == "" {
 			return nil, errors.New("missing X509Certificate within KeyInfo")
 		}
 
 		certData, err := base64.StdEncoding.DecodeString(
-			whiteSpace.ReplaceAllString(sig.KeyInfo.X509Data.X509Certificates[0].Data, ""))
+			whiteSpace.ReplaceAllString(keyInfo.X509Certificates[0].Data, ""))
 		if err != nil {
 			return nil, errors.New("Failed to parse certificate")
 		}
