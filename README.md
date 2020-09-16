@@ -10,7 +10,7 @@ XML Digital Signatures implemented in pure Go.
 Install `goxmldsig` using `go get`:
 
 ```
-$ go get github.com/russellhaering/goxmldsig
+$ go get github.com/happay/goxmldsig
 ```
 
 ## Usage
@@ -22,17 +22,22 @@ package main
 
 import (
     "github.com/beevik/etree"
-    "github.com/russellhaering/goxmldsig"
+    "github.com/happay/goxmldsig"
 )
 
 func main() {
     // Generate a key and self-signed certificate for signing
     randomKeyStore := dsig.RandomKeyStoreForTest()
     ctx := dsig.NewDefaultSigningContext(randomKeyStore)
+    // Define Other Canonical Algorithm, default is MakeC14N11Canonicalizer
+    ctx.Canonicalizer = dsig.MakeC14N10RecCanonicalizer()
+    
+    // Define Other KeyValue type, details is RSAKeyValue
+    ctx.KeyValueInfo = dsig.X509SubjectNameTag
+    
     elementToSign := &etree.Element{
         Tag: "ExampleElement",
     }
-    elementToSign.CreateAttr("ID", "id1234")
 
     // Sign the element
     signedElement, err := ctx.SignEnveloped(elementToSign)

@@ -23,6 +23,14 @@ const (
 	X509DataTag               = "X509Data"
 	X509CertificateTag        = "X509Certificate"
 	InclusiveNamespacesTag    = "InclusiveNamespaces"
+	// RSA Key Value Tags
+	KeyValueTag    = "KeyValue"
+	RSAKeyValueTag = "RSAKeyValue"
+	ModulusTag     = "Modulus"
+	ExponentTag    = "Exponent"
+
+	// x509 Subject Name Tags
+	X509SubjectNameTag = "X509SubjectName"
 )
 
 const (
@@ -79,3 +87,10 @@ var signatureMethodIdentifiers = map[crypto.Hash]string{
 	crypto.SHA256: RSASHA256SignatureMethod,
 	crypto.SHA512: RSASHA512SignatureMethod,
 }
+
+// VAlid List of KeyValue Info can be used
+const (
+	RSAKeyValue     = "RSAKeyValue"
+	x509SubjectName = "SubjectName"
+	x509DataCert    = "x509DataCert"
+)

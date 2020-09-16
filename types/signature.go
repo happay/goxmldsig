@@ -76,7 +76,7 @@ type Signature struct {
 	XMLName        xml.Name        `xml:"http://www.w3.org/2000/09/xmldsig# Signature"`
 	SignedInfo     *SignedInfo     `xml:"SignedInfo"`
 	SignatureValue *SignatureValue `xml:"SignatureValue"`
-	KeyInfo        *KeyInfo        `xml:"KeyInfo"`
+	KeyInfo        interface{}        `xml:"KeyInfo"`
 	el             *etree.Element
 }
 
