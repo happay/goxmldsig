@@ -11,11 +11,11 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"goxmldsig/etreeutils"
 	"strconv"
 	"strings"
 
 	"github.com/beevik/etree"
-	"github.com/russellhaering/goxmldsig/etreeutils"
 )
 
 type SigningContext struct {
