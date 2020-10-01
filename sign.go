@@ -207,7 +207,7 @@ func (ctx *SigningContext) ConstructSignature(el *etree.Element, enveloped bool)
 		expo := []byte(strconv.Itoa(rsaPublicKey.E))
 		x509Certificate.SetText(base64.StdEncoding.EncodeToString(expo))
 
-	case x509SubjectName:
+	case X509SubjectName:
 		// Used in case of x509 Subject Name
 		x509Data := ctx.createNamespacedElement(keyInfo, X509DataTag)
 		x509Certificate := ctx.createNamespacedElement(x509Data, X509SubjectNameTag)
@@ -224,7 +224,7 @@ func (ctx *SigningContext) ConstructSignature(el *etree.Element, enveloped bool)
 		pubCertStr = strings.Replace(pubCertStr, "\n-----END CERTIFICATE-----\n", "", 1)
 		x509Certificate.SetText(pubCertStr)
 
-	case x509DataCert:
+	case X509SubjectName:
 		x509Data := ctx.createNamespacedElement(keyInfo, X509DataTag)
 		x509Certificate := ctx.createNamespacedElement(x509Data, X509CertificateTag)
 		x509Certificate.SetText(base64.StdEncoding.EncodeToString(cert))

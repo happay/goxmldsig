@@ -91,6 +91,6 @@ var signatureMethodIdentifiers = map[crypto.Hash]string{
 // VAlid List of KeyValue Info can be used
 const (
 	RSAKeyValue     = "RSAKeyValue"
-	x509SubjectName = "SubjectName"
-	x509DataCert    = "x509DataCert"
+	X509SubjectName = "SubjectName"
+	X509DataCert    = "x509DataCert"
 )
