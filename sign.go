@@ -224,7 +224,7 @@ func (ctx *SigningContext) ConstructSignature(el *etree.Element, enveloped bool)
 		pubCertStr = strings.Replace(pubCertStr, "\n-----END CERTIFICATE-----\n", "", 1)
 		x509Certificate.SetText(pubCertStr)
 
-	case X509SubjectName:
+	case X509DataCert:
 		x509Data := ctx.createNamespacedElement(keyInfo, X509DataTag)
 		x509Certificate := ctx.createNamespacedElement(x509Data, X509CertificateTag)
 		x509Certificate.SetText(base64.StdEncoding.EncodeToString(cert))
