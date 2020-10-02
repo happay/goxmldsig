@@ -27,12 +27,14 @@ type ValidationContext struct {
 	CertificateStore X509CertificateStore
 	IdAttribute      string
 	Clock            *Clock
+	EvalDigest		 bool
 }
 
 func NewDefaultValidationContext(certificateStore X509CertificateStore) *ValidationContext {
 	return &ValidationContext{
 		CertificateStore: certificateStore,
 		IdAttribute:      DefaultIdAttr,
+		EvalDigest:       true,
 	}
 }
 
@@ -279,7 +281,7 @@ func (ctx *ValidationContext) validateSignature(el *etree.Element, sig *types.Si
 		return nil, err
 	}
 
-	if !bytes.Equal(digest, decodedDigestValue) {
+	if !bytes.Equal(digest, decodedDigestValue) && ctx.EvalDigest {
 		return nil, errors.New("Signature could not be verified")
 	}
 
