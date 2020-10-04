@@ -7,8 +7,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"goxmldsig/etreeutils"
-	"goxmldsig/types"
+	"github.com/happay/goxmldsig/etreeutils"
+	"github.com/happay/goxmldsig/types"
 	"regexp"
 
 	"github.com/beevik/etree"

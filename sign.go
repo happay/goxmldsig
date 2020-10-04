@@ -11,7 +11,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"goxmldsig/etreeutils"
+	"github.com/happay/goxmldsig/etreeutils"
 	"strconv"
 	"strings"
 
